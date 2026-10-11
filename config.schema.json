@@ -1,0 +1,129 @@
+{
+  "pluginAlias": "OpenSprinkler",
+  "pluginType": "platform",
+  "singular": true,
+  "strictValidation": false,
+  "schema": {
+    "type": "object",
+    "required": ["name", "controllers"],
+    "additionalProperties": false,
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "OpenSprinkler"
+      },
+      "controllers": {
+        "title": "Controllers",
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "required": ["name", "host", "passwordHash"],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "title": "Name",
+              "type": "string",
+              "description": "Shown as the Irrigation System accessory name in the Home app.",
+              "default": "Sprinklers"
+            },
+            "host": {
+              "title": "Host",
+              "type": "string",
+              "description": "IP address or hostname of the OpenSprinkler controller.",
+              "default": "192.168.1.100"
+            },
+            "port": {
+              "title": "Port",
+              "type": "integer",
+              "default": 80,
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "passwordHash": {
+              "title": "Password Hash",
+              "type": "string",
+              "pattern": "^[a-fA-F0-9]{32}$",
+              "description": "MD5 hash of the admin password, not the plaintext password. Get it by opening the controller's own web UI, logging in, then in the browser console running: localStorage.getItem('os_pw_hash') — or compute it yourself with `echo -n \"<password>\" | md5` on macOS."
+            },
+            "rainDelay": {
+              "title": "Rain Delay",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "title": "Expose a rain delay switch",
+                  "type": "boolean",
+                  "default": true
+                },
+                "defaultHours": {
+                  "title": "Default delay (hours) when turned on from HomeKit",
+                  "type": "integer",
+                  "default": 24,
+                  "minimum": 1,
+                  "maximum": 72,
+                  "condition": {
+                    "functionBody": "return model.controllers && model.controllers[arrayIndices].rainDelay && model.controllers[arrayIndices].rainDelay.enabled;"
+                  }
+                }
+              }
+            },
+            "programSwitches": {
+              "title": "Expose a trigger switch per enabled program",
+              "type": "boolean",
+              "default": false
+            },
+            "sensors": {
+              "title": "Expose configured rain/soil sensors",
+              "type": "boolean",
+              "default": false
+            },
+            "waterLevel": {
+              "title": "Expose weather-adjusted water level as a sensor",
+              "type": "boolean",
+              "default": false
+            },
+            "mqtt": {
+              "title": "MQTT (real-time updates)",
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "title": "Subscribe to the controller's own MQTT broker for instant updates",
+                  "type": "boolean",
+                  "default": false
+                },
+                "host": {
+                  "title": "Broker host (defaults to the controller's host above if omitted)",
+                  "type": "string"
+                },
+                "port": {
+                  "title": "Broker port",
+                  "type": "integer",
+                  "default": 1883,
+                  "minimum": 1,
+                  "maximum": 65535
+                },
+                "username": {
+                  "title": "Broker username",
+                  "type": "string"
+                },
+                "password": {
+                  "title": "Broker password",
+                  "type": "string"
+                },
+                "topicPrefix": {
+                  "title": "Topic prefix",
+                  "type": "string",
+                  "description": "Must match the controller's own configured MQTT publish topic (its \"pubt\" setting), e.g. \"opensprinkler\".",
+                  "default": "opensprinkler"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
