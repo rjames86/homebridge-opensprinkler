@@ -160,7 +160,12 @@ export class OpenSprinklerPlatform implements DynamicPlatformPlugin {
 
     if (cfg.programSwitches) {
       const programs = await client.getPrograms().catch(() => ({ pd: [] }));
-      for (const program of summarizePrograms(programs).filter((p) => p.enabled)) {
+      // Every defined program gets a switch, regardless of its own
+      // auto-schedule "enabled" flag — that flag only controls whether the
+      // program runs on its own schedule, not whether it's a valid manual
+      // trigger target. A seasonally-paused program should still be
+      // runnable on demand from HomeKit.
+      for (const program of summarizePrograms(programs)) {
         const pAccessory = this.getOrCreate(`${controllerId}-program-${program.pid}`, `${cfg.name} ${program.name}`);
         pAccessory.context.device = {
           controllerId, pid: program.pid, name: program.name,
