@@ -3,14 +3,13 @@
   "displayName": "OpenSprinkler",
   "type": "module",
   "version": "0.1.0",
-  "private": true,
   "description": "Homebridge plugin for OpenSprinkler irrigation controllers using HomeKit's native Irrigation System service, with MQTT-driven real-time updates.",
   "author": "Ryan James",
   "license": "Apache-2.0",
   "homepage": "https://github.com/rjames86/homebridge-opensprinkler#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rjames86/homebridge-opensprinkler.git"
+    "url": "git+https://github.com/rjames86/homebridge-opensprinkler.git"
   },
   "bugs": {
     "url": "https://github.com/rjames86/homebridge-opensprinkler/issues"
