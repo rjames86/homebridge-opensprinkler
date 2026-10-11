@@ -39,7 +39,8 @@
               "type": "integer",
               "default": 80,
               "minimum": 1,
-              "maximum": 65535
+              "placeholder": "1-65535",
+              "description": "Usually 80, unless the controller's web UI is configured on a different port."
             },
             "passwordHash": {
               "title": "Password Hash",
@@ -62,7 +63,7 @@
                   "type": "integer",
                   "default": 24,
                   "minimum": 1,
-                  "maximum": 72,
+                  "placeholder": "1-72",
                   "condition": {
                     "functionBody": "return model.controllers && model.controllers[arrayIndices].rainDelay && model.controllers[arrayIndices].rainDelay.enabled;"
                   }
@@ -103,7 +104,7 @@
                   "type": "integer",
                   "default": 1883,
                   "minimum": 1,
-                  "maximum": 65535
+                  "placeholder": "1-65535"
                 },
                 "username": {
                   "title": "Broker username",
