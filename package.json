@@ -2,7 +2,7 @@
   "name": "@rjames86/homebridge-opensprinkler",
   "displayName": "OpenSprinkler",
   "type": "module",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Homebridge plugin for OpenSprinkler irrigation controllers using HomeKit's native Irrigation System service, with MQTT-driven real-time updates.",
   "author": "Ryan James",
   "license": "Apache-2.0",

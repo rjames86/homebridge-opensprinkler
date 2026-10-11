@@ -100,7 +100,17 @@ export class OpenSprinklerPlatform implements DynamicPlatformPlugin {
     }
 
     for (const controllerConfig of controllers) {
-      await this.setUpController(controllerConfig);
+      try {
+        await this.setUpController(controllerConfig);
+      } catch (err) {
+        // setUpController's own try/catch covers unreachable-controller errors;
+        // this one is the backstop for anything that throws synchronously
+        // before that point (e.g. OpenSprinklerClient's passwordHash format
+        // check) — without it, a single misconfigured controller becomes an
+        // unhandled rejection that crashes the whole plugin instead of just
+        // skipping that controller.
+        this.log.error('Failed to set up OpenSprinkler controller "%s": %s', controllerConfig.name, (err as Error).message);
+      }
     }
 
     for (const [uuid, accessory] of this.accessories) {
