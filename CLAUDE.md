@@ -69,3 +69,16 @@ homebridge -U ./test/hbConfig -D
 
 `test/hbConfig/` is gitignored — put real controller credentials there, not
 in anything committed.
+
+## Releasing
+
+`npm run release` (`scripts/release.sh`) tags, pushes the tag, creates a
+GitHub release (`gh release create --generate-notes`), and runs
+`npm publish` — all in one command. Homebridge's verified-plugins
+requirements include a GitHub release with notes for every published
+version, so this exists specifically to make skipping that step impossible:
+bump `version` in `package.json`, commit, run `npm run release`. Requires
+`gh` to be authenticated — over an SSH-based session, `gh auth status` can
+report the token as invalid even after a local `gh auth login`, because `gh`
+reads its token from the macOS keychain and a raw `sshd`-spawned session
+can't access it. Run this from the machine's local console.
