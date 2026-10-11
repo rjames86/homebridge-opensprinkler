@@ -1,185 +1,106 @@
-<p align="center">
+# homebridge-opensprinkler
 
-<img src="https://github.com/homebridge/branding/raw/latest/logos/homebridge-wordmark-logo-vertical.png" width="150">
+A Homebridge plugin for [OpenSprinkler](https://opensprinkler.com/) irrigation
+controllers, built from scratch on current Homebridge best practices.
 
-</p>
+The existing OpenSprinkler Homebridge plugins
+([`homebridge-opensprinkler-api`](https://github.com/homebridge-plugins/homebridge-opensprinkler-api),
+[`timcharper/homebridge-opensprinkler`](https://github.com/timcharper/homebridge-opensprinkler))
+are unmaintained and limited — no program triggering, no multi-controller
+support, zone durations reset on every Homebridge restart, and REST polling
+only. This plugin:
 
-<span align="center">
+- Uses HomeKit's native **Irrigation System** service with linked **Valve**
+  services per zone — not standalone valve accessories — so zones show up
+  correctly grouped under one sprinkler tile in the Home app.
+- Persists each valve's run duration across Homebridge restarts.
+- Subscribes to the controller's **own MQTT events** for near-instant
+  updates (zone on/off, rain delay, sensors), falling back to REST polling
+  for state MQTT doesn't cover.
+- Supports **multiple controllers** from one config.
+- Exposes rain delay, program-trigger switches, configured rain/soil
+  sensors, and weather-adjusted water level as optional accessories.
 
-# Homebridge Platform Plugin Template
+**Status**: early (`0.x`) — functional and tested against a real
+controller, but not yet feature-complete or submitted to the Homebridge
+verified plugins list. Expect rough edges.
 
-</span>
+## Features
 
-This is a template Homebridge dynamic platform plugin and can be used as a base to help you get started developing your own plugin.
+| Accessory | Service | Notes |
+|---|---|---|
+| Irrigation System | `IrrigationSystem` + linked `Valve` per zone | Always created. `Active` = system enable/disable; disabling also stops any in-progress run. Each valve's `SetDuration` persists across restarts. |
+| Rain Delay | `Switch` | Optional. Turning on applies a configurable default delay (hours); synced instantly via MQTT if enabled. |
+| Program switches | `Switch` (momentary) per enabled program | Optional. Triggers the program, then auto-resets off ~1s later — there's no native "run this program" HomeKit action. |
+| Sensors | `ContactSensor` per configured rain/soil sensor | Optional. Only created if the controller actually has `sn1`/`sn2` configured as Rain or Soil type. Flow sensors aren't exposed this way. |
+| Water Level | `HumiditySensor` | Optional. Repurposes the humidity reading to show the weather-adjusted watering percentage — a common convention for surfacing an arbitrary % in the Home app. |
 
-This template should be used in conjunction with the [developer documentation](https://developers.homebridge.io/). A full list of all supported service types, and their characteristics is available on this site.
+## Configuration
 
-### Clone As Template
+Configure via Homebridge Config UI X, or directly in `config.json`:
 
-Click the link below to create a new GitHub Repository using this template, or click the *Use This Template* button above.
-
-<span align="center">
-
-### [Create New Repository From Template](https://github.com/homebridge/homebridge-plugin-template/generate)
-
-</span>
-
-### Setup Development Environment
-
-To develop Homebridge plugins you must have Node.js 22 or later installed, and a modern code editor such as [VS Code](https://code.visualstudio.com/). This plugin template uses [TypeScript](https://www.typescriptlang.org/) to make development easier and comes with pre-configured settings for [VS Code](https://code.visualstudio.com/) and ESLint. If you are using VS Code install these extensions:
-
-- [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
-
-### Install Development Dependencies
-
-Using a terminal, navigate to the project folder and run this command to install the development dependencies:
-
-```shell
-npm install
-```
-
-### Update package.json
-
-Open the [`package.json`](./package.json) and change the following attributes:
-
-- `name` - this should be prefixed with `homebridge-` or `@username/homebridge-`, is case-sensitive, and contains no spaces nor special characters apart from a dash `-`
-- `displayName` - this is the "nice" name displayed in the Homebridge UI
-- `homepage` - link to your GitHub repo's `README.md`
-- `repository.url` - link to your GitHub repo
-- `bugs.url` - link to your GitHub repo issues page
-- `keywords` - the template ships with `homebridge-plugin` (required) and `supports-hap` (the plugin publishes accessories over HAP, which template-based plugins do). Add `supports-matter` if your plugin also registers Matter accessories itself — see the [Matter Plugins](https://github.com/homebridge/homebridge/wiki/Matter-Plugins) wiki page
-
-When you are ready to publish the plugin you should set `private` to false, or remove the attribute entirely.
-
-### Update Plugin Defaults
-
-Open the [`src/settings.ts`](./src/settings.ts) file and change the default values:
-
-- `PLATFORM_NAME` - Set this to be the name of your platform. This is the name of the platform that users will use to register the plugin in the Homebridge `config.json`.
-- `PLUGIN_NAME` - Set this to be the same name you set in the [`package.json`](./package.json) file.
-
-Open the [`config.schema.json`](./config.schema.json) file and change the following attribute:
-
-- `pluginAlias` - set this to match the `PLATFORM_NAME` you defined in the previous step.
-
-See the [Homebridge API docs](https://developers.homebridge.io/#/config-screen/schema#default-values) for more details on the other attributes you can set in the `config.schema.json` file.
-
-### Build Plugin
-
-TypeScript needs to be compiled into JavaScript before it can run. The following command will compile the contents of your [`src`](./src) directory and put the resulting code into the `dist` folder.
-
-```shell
-npm run build
-```
-
-### Link To Homebridge
-
-Run this command so your global installation of Homebridge can discover the plugin in your development environment:
-
-```shell
-npm link
-```
-
-You can now start Homebridge, use the `-D` flag, so you can see debug log messages in your plugin:
-
-```shell
-homebridge -D
-```
-
-### Watch For Changes and Build Automatically
-
-If you want to have your code compile automatically as you make changes, and restart Homebridge automatically between changes, you first need to add your plugin as a platform in `./test/hbConfig/config.json`:
-```
+```json
 {
-...
-    "platforms": [
-        {
-            "name": "Config",
-            "port": 8581,
-            "platform": "config"
-        },
-        {
-            "name": "<PLUGIN_NAME>",
-            //... any other options, as listed in config.schema.json ...
-            "platform": "<PLATFORM_NAME>"
-        }
-    ]
+  "platform": "OpenSprinkler",
+  "name": "OpenSprinkler",
+  "controllers": [
+    {
+      "name": "Sprinklers",
+      "host": "192.168.1.100",
+      "port": 80,
+      "passwordHash": "<md5 hash of your admin password>",
+      "rainDelay": { "enabled": true, "defaultHours": 24 },
+      "programSwitches": false,
+      "sensors": false,
+      "waterLevel": false,
+      "mqtt": {
+        "enabled": false,
+        "topicPrefix": "opensprinkler"
+      }
+    }
+  ]
 }
 ```
 
-and then you can run:
+### Getting `passwordHash`
 
-```shell
-npm run watch
+The plugin takes the **MD5 hash** of your controller's admin password, never
+the plaintext password — the controller's own API only ever accepts the
+hash anyway. Get it by opening the controller's web UI, logging in, then in
+your browser's console running:
+
+```js
+localStorage.getItem('os_pw_hash')
 ```
 
-This will launch an instance of Homebridge in debug mode which will restart every time you make a change to the source code. It will load the config stored in the default location under `~/.homebridge`. You may need to stop other running instances of Homebridge while using this command to prevent conflicts. You can adjust the Homebridge startup command in the [`nodemon.json`](./nodemon.json) file.
+Or compute it yourself: `echo -n "<password>" | md5` (macOS) /
+`echo -n "<password>" | md5sum` (Linux).
 
-### Customise Plugin
+### MQTT (optional, recommended)
 
-You can now start customising the plugin template to suit your requirements.
+If your controller has MQTT enabled (its own Options → MQTT settings, not
+Homebridge's), set `mqtt.enabled: true` and `mqtt.topicPrefix` to match the
+controller's configured publish topic prefix exactly. This gets you
+near-instant updates for zone state, rain delay, and sensors instead of
+waiting for the next poll.
 
-- [`src/platform.ts`](./src/platform.ts) - this is where your device setup and discovery should go.
-- [`src/platformAccessory.ts`](./src/platformAccessory.ts) - this is where your accessory control logic should go, you can rename or create multiple instances of this file for each accessory type you need to implement as part of your platform plugin. You can refer to the [developer documentation](https://developers.homebridge.io/) to see what characteristics you need to implement for each service type.
-- [`config.schema.json`](./config.schema.json) - update the config schema to match the config you expect from the user. See the [Plugin Config Schema Documentation](https://developers.homebridge.io/#/config-screen/schema).
+## Development
 
-### Versioning Your Plugin
-
-Given a version number `MAJOR`.`MINOR`.`PATCH`, such as `1.4.3`, increment the:
-
-1. **MAJOR** version when you make breaking changes to your plugin,
-2. **MINOR** version when you add functionality in a backwards compatible manner, and
-3. **PATCH** version when you make backwards compatible bug fixes.
-
-You can use the `npm version` command to help you with this:
-
-```shell
-# major update / breaking changes
-npm version major
-
-# minor update / new features
-npm version update
-
-# patch / bugfixes
-npm version patch
+```bash
+npm install
+npm run build
+npm link
 ```
 
-### Publish Package
+Add the plugin to `test/hbConfig/config.json` (gitignored — put your real
+controller's host and password hash there), then:
 
-When you are ready to publish your plugin to [npm](https://www.npmjs.com/), make sure you have removed the `private` attribute from the [`package.json`](./package.json) file then run:
-
-```shell
-npm publish
+```bash
+homebridge -U ./test/hbConfig -D
 ```
 
-If you are publishing a scoped plugin, i.e. `@username/homebridge-xxx` you will need to add `--access=public` to command the first time you publish.
+`npm run watch` rebuilds and restarts on file changes (via `nodemon`).
 
-#### Publishing Beta Versions
+## License
 
-You can publish *beta* versions of your plugin for other users to test before you release it to everyone.
-
-```shell
-# create a new pre-release version (eg. 2.1.0-beta.1)
-npm version prepatch --preid beta
-
-# publish to @beta
-npm publish --tag beta
-```
-
-Users can then install the  *beta* version by appending `@beta` to the install command, for example:
-
-```shell
-sudo npm install -g homebridge-example-plugin@beta
-```
-
-### Best Practices
-
-Consider creating your plugin with the [Homebridge Verified](https://github.com/homebridge/plugins) criteria in mind. This will help you to create a plugin that is easy to use and works well with Homebridge.
-You can then submit your plugin to the Homebridge Verified list for review.
-The most up-to-date criteria can be found on the [Verified Plugins](https://github.com/homebridge/plugins/wiki/Verified-Plugins) wiki page.
-
-### Useful Links
-
-Note these links are here for help but are not supported/verified by the Homebridge team
-
-- [Custom Characteristics](https://github.com/homebridge/homebridge-plugin-template/issues/20)
+Apache-2.0
